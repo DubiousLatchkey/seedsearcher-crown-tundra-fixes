@@ -71,7 +71,7 @@ namespace SeedSearcherGui
 
         private static ulong Advance(ulong start, uint frames)
         {
-            return start + (frames * XOROSHIRO.XOROSHIRO_CONST);
+            return start + (frames * Xoroshiro.XOROSHIRO_CONST);
         }
 
         private void GenerateData_Click(object sender, EventArgs e)
@@ -85,7 +85,7 @@ namespace SeedSearcherGui
             raidContent.Rows.Clear();
             var rows = new List<DataGridViewRow>();
             ((ISupportInitialize)raidContent).BeginInit();
-            for (uint current_frame = start_frame; current_frame <= start_frame + end_frame; current_frame++, current_seed += XOROSHIRO.XOROSHIRO_CONST)
+            for (uint current_frame = start_frame; current_frame <= start_frame + end_frame; current_frame++, current_seed += Xoroshiro.XOROSHIRO_CONST)
             {
                 RaidPKM res = pkmn.ConvertToPKM(current_seed, 0, 0);
                 var row = CreateRaidRow(current_frame, res, GameStrings, current_seed);
@@ -272,7 +272,7 @@ namespace SeedSearcherGui
 
             ((ISupportInitialize)raidContent).BeginInit();
             raidContent.Rows.Clear();
-            for (uint current_frame = start_frame; ; current_frame++, current_seed += XOROSHIRO.XOROSHIRO_CONST)
+            for (uint current_frame = start_frame; ; current_frame++, current_seed += Xoroshiro.XOROSHIRO_CONST)
             {
                 var pkm = template.ConvertToPKM(current_seed, 0, 0);
                 if (!IsRowVisible(pkm))
@@ -324,7 +324,7 @@ namespace SeedSearcherGui
             raidContent.Rows.Clear();
             bool foundSquare = false;
             bool foundStar = false;
-            for (uint current_frame = start_frame; !foundSquare || !foundStar; current_frame++, current_seed += XOROSHIRO.XOROSHIRO_CONST)
+            for (uint current_frame = start_frame; !foundSquare || !foundStar; current_frame++, current_seed += Xoroshiro.XOROSHIRO_CONST)
             {
                 var pkm = template.ConvertToPKM(current_seed, 0, 0);
                 

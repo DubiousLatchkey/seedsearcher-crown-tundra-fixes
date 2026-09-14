@@ -280,6 +280,12 @@ namespace SeedSearcherGui
                 Properties.strings.DLC_31_4,
                 Properties.strings.DLC_31_5,
                 Properties.strings.DLC_31_6,
+                Properties.strings.DLC_32_1,
+                Properties.strings.DLC_32_2,
+                Properties.strings.DLC_32_3,
+                Properties.strings.DLC_32_4,
+                Properties.strings.DLC_32_5,
+                Properties.strings.DLC_32_6,
                 Properties.strings.DLC_33_1,
                 Properties.strings.DLC_33_2,
                 Properties.strings.DLC_33_3,
@@ -470,12 +476,11 @@ namespace SeedSearcherGui
             Pen redPen = new Pen(Color.Red, 10);
             var map = Resources.map;
             if (location >= 32)
-            {
                 map = Resources.map_02;
-            }
             else if (location >= 17)
-            {
                 map = Resources.map_01;
+            if (location >= 17)
+            {
                 using (var graphics = Graphics.FromImage(map))
                     graphics.DrawArc(redPen, x - 1, y - 1, 2, 2, 0, 360);
                 int start_point_x = x - 172 / 2;

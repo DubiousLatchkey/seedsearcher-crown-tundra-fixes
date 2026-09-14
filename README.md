@@ -1,5 +1,9 @@
-# Seed Searcher by Lean
-This tool allows you to recover the seed of a den in Pokémon Sword and Shield. All you need to do is to input IVs, Nature, Ability, and Characteristic of up to 4 Pokémon. 
+# Seed Searcher by Lean — Crown Tundra Fixes
+This is a fork of [Leanny/SeedSearcher](https://github.com/Leanny/SeedSearcher). It keeps the original seed-searching tool and adds refreshed den location data and Crown Tundra location handling.
+
+Basically all I did here was adjust the 6 missing Crown Tundra dens so the data lined up.  Also, I added in the positions for Crown Tundra dens by rebuilding PKHex's raid plugin that acts as the data source for this repo in .NET 4.8 version except with the up to date position data.
+
+Fork version: **1.2.1**
 
 # Requirements
 To run this tool you need [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) and [Microsoft Visual C++ Redistributable](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads).
