@@ -12,7 +12,8 @@ namespace SeedSearcherGui
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new SeedSearcherGui());
+            try { Application.Run(new SeedSearcherGui()); }
+            finally { GpuDeviceCatalog.Shutdown(); }
         }
     }
 }

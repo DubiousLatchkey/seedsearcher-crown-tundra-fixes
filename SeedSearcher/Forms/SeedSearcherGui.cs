@@ -42,6 +42,7 @@ namespace SeedSearcherGui
         public SeedSearcherGui()
         {
             InitializeComponent();
+            Text = "Seed Searcher " + typeof(SeedSearcherGui).Assembly.GetName().Version.ToString(2);
             if (!Directory.Exists("Events"))
             {
                 Directory.CreateDirectory("Events");
@@ -101,6 +102,7 @@ namespace SeedSearcherGui
             cpu1.Name = "cPUToolStripMenuItem1";
             cpu1.Size = new System.Drawing.Size(224, 26);
             cpu1.Text = "CPU (50%)";
+            cpu1.Tag = -3;
 
             ToolStripMenuItem cpu2 = new ToolStripMenuItem();
             this.acceleratorToolStripMenuItem.DropDownItems.Add(cpu2);
@@ -108,6 +110,7 @@ namespace SeedSearcherGui
             cpu2.Name = "cPUToolStripMenuItem2";
             cpu2.Size = new System.Drawing.Size(224, 26);
             cpu2.Text = "CPU (75%)";
+            cpu2.Tag = -2;
 
             ToolStripMenuItem cpu3 = new ToolStripMenuItem();
             this.acceleratorToolStripMenuItem.DropDownItems.Add(cpu3);
@@ -115,6 +118,7 @@ namespace SeedSearcherGui
             cpu3.Name = "cPUToolStripMenuItem3";
             cpu3.Size = new System.Drawing.Size(224, 26);
             cpu3.Text = "CPU (100%)";
+            cpu3.Tag = -1;
 
             var devices = SeedSearcherGPU.UseableGPU();
             int num = 2;
@@ -125,7 +129,8 @@ namespace SeedSearcherGui
                 gpu.CheckOnClick = true;
                 gpu.Name = "GPUToolStripMenuItem" + device.Name;
                 gpu.Size = new System.Drawing.Size(224, 26);
-                gpu.Text = device.Name;
+                gpu.Text = device.Name + " (ILGPU CUDA)";
+                gpu.Tag = num - 2;
                 num++;
             }
             ((ToolStripMenuItem)this.acceleratorToolStripMenuItem.DropDownItems[num]).Checked = true;
@@ -1138,18 +1143,9 @@ namespace SeedSearcherGui
 
         private int GetAcceleratorIdx()
         {
-            int res = 0;
-            int idx = 0;
             foreach (ToolStripMenuItem item in acceleratorToolStripMenuItem.DropDownItems)
-            {
-                if (item.Checked)
-                {
-                    res = idx;
-                }
-                idx++;
-            }
-            return res - 3;
-
+                if (item.Checked && item.Tag is int index) return index;
+            return -1;
         }
 
         private void BT_Stop_Search(object sender, EventArgs e)
@@ -1502,14 +1498,18 @@ namespace SeedSearcherGui
             System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
             stopWatch.Start();
 
-            await Task.Run(() =>
+            Exception searchError = null;
+            int acceleratorIndex = GetAcceleratorIdx();
+            try
             {
-#if DEBUG
-                searcher.Calculate(GetAcceleratorIdx(), minRerolls, maxRerolls, target, LBL_IVDev, null);
-#else
-                searcher.Calculate(GetAcceleratorIdx(), minRerolls, maxRerolls, target, LBL_IVDev, calculationProgressBar);
-#endif
-            });
+                await Task.Run(() => searcher.Calculate(acceleratorIndex, minRerolls, maxRerolls, target, LBL_IVDev, calculationProgressBar));
+            }
+            catch (Exception ex)
+            {
+                searchError = ex;
+                MessageBox.Show(this, "Search failed. You can select CPU in the accelerator menu and retry.\n\n" + ex.Message,
+                    "Seed search", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
             stopWatch.Stop();
             LBL_Time.Text = $"{stopWatch.ElapsedMilliseconds} ms";
@@ -1523,7 +1523,8 @@ namespace SeedSearcherGui
             BT_Search.Enabled = searcher.Result.Count == 0;
             if (searcher.Result.Count == 0)
             {
-                MessageBox.Show(Properties.strings.NoSeed);
+                if (searchError == null && searcher.Outcome != SeedSearcher.SearchOutcome.Cancelled)
+                    MessageBox.Show(Properties.strings.NoSeed);
                 //unlock for editing
                 GB_41.Enabled = true;
                 GB_42.Enabled = enabled[1];

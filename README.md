@@ -3,9 +3,13 @@ This is a fork of [Leanny/SeedSearcher](https://github.com/Leanny/SeedSearcher).
 
 Basically all I did here was adjust the 6 missing Crown Tundra dens so the data lined up.  Also, I added in the positions for Crown Tundra dens by rebuilding PKHex's raid plugin that acts as the data source for this repo in .NET 4.8 version except with the up to date position data.
 
-Fork version: **1.2.1**
+GPU searching now uses [ILGPU](docs/ILGPU-validation.md) instead of Alea for modern NVIDIA GPU support, tested on RTX 40-series hardware with RTX 50-series compatibility expected but not yet hardware-verified.
+
+Fork version: **1.3**
 
 # Requirements
+Use 64-bit Windows with a current NVIDIA driver for CUDA search. No CUDA Toolkit installation or timeout-registry change is required. For CPU search, no NVIDIA GPU is required.
+
 To run this tool you need [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) and [Microsoft Visual C++ Redistributable](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads).
 
 # Tutorial
@@ -57,12 +61,12 @@ Here, your seed will be printed when its found. Click "Start Search" to start a 
 ## What does "4/6", "5/6", or "6/6" mean?
 The RNG used for raids produces a sequence of random numbers. In order to get the seed from a list of Pokémon part of the random number sequence is restored. The IVs you provide for your Day 4 Pokémon belongs to this sequence of random numbers. To get the seed as fast as possible, an IV spread that allows to reconstruct 6 consecutive random numbers works the best, which is 6/6. If the IV spread provides less numbers, then the seed finding will take longer. 
 
-## I get the ``[CUDAError] CUDA_ERROR_LAUNCH_FAILED`` error. What should I do?
-In this case there is a batch file in the directory ``CudaSetup`` called ``EnableCuda.bat``. This needs to be executed as admin in order to write 2 values to the registry. After that, the PC must be rebooted in order for it to take action. For more information about what the registry entries are doing, check out the documentation by [Microsoft](https://docs.microsoft.com/de-de/windows-hardware/drivers/display/tdr-registry-keys).
+## A GPU search fails. What should I do?
+Update the NVIDIA driver and retry. The error dialog includes the underlying failure. CPU search remains available from the accelerator menu. Do not disable Windows GPU timeout protection; the ILGPU backend divides work into batches.
 
 # Roadmap
 Here are a few points I want to add in future versions:
-* GPU Search - Improves performance drastically, depending on your GPU. CUDA GPUs are supported right now, more GPUs follow.
+* Validate the ILGPU CUDA backend on additional GPUs, including RTX 50 series.
 * CMD Version - A version where you simply have to use an export as argument and get a calculation starting. This is a useful feature for bots.
 
 
