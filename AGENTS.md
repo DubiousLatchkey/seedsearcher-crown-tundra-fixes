@@ -1,4 +1,4 @@
-# SeedSearcher Crown Tundra fork
+# SeedSearcher Refreshed
 
 This nested directory is a separate Git repository. Work here without changing the parent raid-map app or its data. Preserve the Crown Tundra location fixes and the pinned PKHeX assemblies in `SeedSearcher/deps`.
 
@@ -29,3 +29,7 @@ The original 384 fixtures retain their expected values and explicitly choose CPU
 ## OpenCL prerelease
 
 Version 1.3.2 adds OpenCL GPU discovery (NVIDIA remains CUDA; OpenCL CPU devices are excluded). CUDA/OpenCL contexts are independent so one broken vendor runtime cannot hide other backends. Use `tools/Test.ps1 -Backend OpenCL` for explicit hardware selection. Radeon 780M / Windows driver 31.0.14003.43006 passed focused hardware checks; RX 580 and Intel remain unverified. See `docs/OpenCL-prerelease.md`.
+
+## Repository identity
+
+GitHub: `DubiousLatchkey/seedsearcher-refreshed`. The local directory retains its original name to preserve workspace paths. `master` is the integration/default branch; retain the original upstream credit and application executable identity.
