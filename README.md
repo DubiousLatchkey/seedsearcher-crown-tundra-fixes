@@ -3,12 +3,12 @@ This is a fork of [Leanny/SeedSearcher](https://github.com/Leanny/SeedSearcher).
 
 Basically all I did here was adjust the 6 missing Crown Tundra dens so the data lined up.  Also, I added in the positions for Crown Tundra dens by rebuilding PKHex's raid plugin that acts as the data source for this repo in .NET 4.8 version except with the up to date position data.
 
-GPU searching now uses [ILGPU](docs/ILGPU-validation.md) instead of Alea for modern NVIDIA GPU support, tested on RTX 40-series hardware with RTX 50-series compatibility expected but not yet hardware-verified.
+GPU searching now uses [ILGPU](docs/ILGPU-validation.md) instead of Alea for NVIDIA CUDA and experimental AMD/Intel OpenCL support, tested on RTX 4060 and Radeon 780M hardware, with RX 580 and Intel testing pending.
 
-Fork version: **1.3**
+Fork version: **1.3.2 prerelease**
 
 # Requirements
-Use 64-bit Windows with a current NVIDIA driver for CUDA search. No CUDA Toolkit installation or timeout-registry change is required. For CPU search, no NVIDIA GPU is required.
+Use 64-bit Windows with a current NVIDIA driver for CUDA search or an AMD/Intel driver providing compatible OpenCL support. No CUDA Toolkit installation or timeout-registry change is required. For CPU search, no NVIDIA GPU is required.
 
 To run this tool you need [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) and [Microsoft Visual C++ Redistributable](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads).
 

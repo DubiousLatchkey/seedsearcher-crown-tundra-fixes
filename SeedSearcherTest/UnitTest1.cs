@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SeedSearcherGui;
 
@@ -7,12 +7,21 @@ namespace SeedSearcherTest
     [TestClass]
     public class UnitTest1
     {
-        // Explicitly select the native CPU or CUDA backend for the same fixtures.
+        internal static int GpuIndex()
+        {
+            string backend = Environment.GetEnvironmentVariable("SEEDSEARCHER_TEST_BACKEND") ?? "CUDA";
+            var type = backend.Equals("OpenCL", StringComparison.OrdinalIgnoreCase)
+                ? ILGPU.Runtime.AcceleratorType.OpenCL : ILGPU.Runtime.AcceleratorType.Cuda;
+            int index = Array.FindIndex(SeedSearcherGPU.UseableGPU(), device => device.AcceleratorType == type);
+            if (index < 0) Assert.Inconclusive("No " + type + " GPU available; install the GPU vendor driver.");
+            return index;
+        }
         private static System.Collections.Generic.List<ulong> Calculate(SeedSearcher searcher, int rolls, int[] target)
         {
             string backend = Environment.GetEnvironmentVariable("SEEDSEARCHER_TEST_BACKEND") ?? "CPU";
-            if (backend != "CPU" && backend != "CUDA") throw new ArgumentException("Use CPU or CUDA for SEEDSEARCHER_TEST_BACKEND.");
-            searcher.Calculate(backend == "CUDA" ? 0 : -1, rolls, rolls, target, null, null);
+            if (backend != "CPU" && backend != "CUDA" && backend != "OpenCL")
+                throw new ArgumentException("Use CPU, CUDA or OpenCL for SEEDSEARCHER_TEST_BACKEND.");
+            searcher.Calculate(backend == "CPU" ? -1 : GpuIndex(), rolls, rolls, target, null, null);
             return searcher.Result;
         }
 

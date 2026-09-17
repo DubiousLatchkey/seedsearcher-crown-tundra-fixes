@@ -42,7 +42,7 @@ namespace SeedSearcherGui
         public SeedSearcherGui()
         {
             InitializeComponent();
-            Text = "Seed Searcher " + typeof(SeedSearcherGui).Assembly.GetName().Version.ToString(2);
+            Text = "Seed Searcher " + typeof(SeedSearcherGui).Assembly.GetName().Version.ToString(3);
             if (!Directory.Exists("Events"))
             {
                 Directory.CreateDirectory("Events");
@@ -129,7 +129,7 @@ namespace SeedSearcherGui
                 gpu.CheckOnClick = true;
                 gpu.Name = "GPUToolStripMenuItem" + device.Name;
                 gpu.Size = new System.Drawing.Size(224, 26);
-                gpu.Text = device.Name + " (ILGPU CUDA)";
+                gpu.Text = device.Name + " (ILGPU " + device.AcceleratorType + ")";
                 gpu.Tag = num - 2;
                 num++;
             }

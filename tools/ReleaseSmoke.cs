@@ -19,13 +19,24 @@ internal static class ReleaseSmoke
             using (var form = (Form)Activator.CreateInstance(app.GetType("SeedSearcherGui.SeedSearcherGui")))
             {
                 form.CreateControl();
-                if (form.Text != "Seed Searcher 1.3") throw new Exception("Incorrect window title: " + form.Text);
+                if (form.Text != "Seed Searcher 1.3.2") throw new Exception("Incorrect window title: " + form.Text);
                 Console.WriteLine("WinForms initialization and title passed: " + form.Text);
             }
             var devices = (Array)app.GetType("SeedSearcherGui.SeedSearcherGPU").GetMethod("UseableGPU").Invoke(null, null);
-            foreach (object device in devices) Console.WriteLine("CUDA: " + device);
-            int backend = args.Length > 0 && args[0] == "--cpu" ? -1 : 0;
-            if (backend == 0 && devices.Length == 0) throw new Exception("CUDA device not discovered.");
+            foreach (object device in devices) Console.WriteLine("GPU: " + device);
+            int backend = -1;
+            if (args.Length == 0 || args[0] != "--cpu")
+            {
+                string requested = args.Length > 0 && args[0] == "--opencl" ? "OpenCL" : "Cuda";
+                for (int i = 0; i < devices.Length; i++)
+                {
+                    object device = devices.GetValue(i);
+                    if (device.GetType().GetProperty("AcceleratorType").GetValue(device, null).ToString() == requested)
+                    { backend = i; break; }
+                }
+                if (backend < 0) throw new Exception(requested + " device not discovered.");
+                Console.WriteLine("Selected: " + devices.GetValue(backend));
+            }
             var search = new SeedSearcher(SeedSearcher.Mode.Star35);
             search.RegisterLSB(1);
             search.RegisterPokemon1(7,31,14,31,16,17,2,1,6,4,1,0,0,false,false);

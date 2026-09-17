@@ -75,8 +75,8 @@ namespace SeedSearcherTest
             var search = Configure(seed, day, form, true);
             Assert.AreEqual(5U, search.TestSeed(seed));
             var devices = SeedSearcherGPU.UseableGPU();
-            if (devices.Length == 0) Assert.Inconclusive("CUDA hardware required.");
-            ulong? result = search.SearchSix(devices[0], 0, 0, new List<ulong> { 3 }, null, null);
+            if (devices.Length == 0) Assert.Inconclusive("GPU hardware required.");
+            ulong? result = search.SearchSix(devices[UnitTest1.GpuIndex()], 0, 0, new List<ulong> { 3 }, null, null);
             Assert.AreEqual(seed, result.Value);
         }
         private static object Native(string method, params object[] args) => typeof(SeedSearcher)
@@ -108,12 +108,12 @@ namespace SeedSearcherTest
             Assert.AreEqual(0x87e8145f67d83f11UL, (ulong)Native("SearchFour", input, 2UL, fixedPosition));
             Assert.AreEqual(0UL, (ulong)Native("SearchFour", input, 3UL, fixedPosition));
         }
-        [TestMethod] public void Cuda_ToxtricityAmplified() => Check(0, 1);
-        [TestMethod] public void Cuda_ToxtricityLowKeyAndDayOffset() => Check(1, 7);
+        [TestMethod] public void Gpu_ToxtricityAmplified() => Check(0, 1);
+        [TestMethod] public void Gpu_ToxtricityLowKeyAndDayOffset() => Check(1, 7);
         [TestMethod]
-        public void Cuda_ZeroSeedThroughPublicSearch()
+        public void Gpu_ZeroSeedThroughPublicSearch()
         {
-            if (SeedSearcherGPU.UseableGPU().Length == 0) Assert.Inconclusive("CUDA hardware required.");
+            if (SeedSearcherGPU.UseableGPU().Length == 0) Assert.Inconclusive("GPU hardware required.");
             var search = new SeedSearcher(SeedSearcher.Mode.Star35);
             search.RegisterLSB(1);
             var encounters = new[] { Encounter(0,1,2,0,false), Encounter(0,1,3,0,false), Encounter(0,2,2,0,false), Encounter(0,3,2,0,false) };
@@ -123,7 +123,7 @@ namespace SeedSearcherTest
                 typeof(SeedSearcher).GetMethod("RegisterPokemon" + (i + 1)).Invoke(search, new object[] {
                     p.ivs0,p.ivs1,p.ivs2,p.ivs3,p.ivs4,p.ivs5,p.fixedIV,p.ability,p.nature,p.characteristic,p.day,p.ID,p.altForm,p.isNoGender,p.isEnableDream,p.fixedIVPos });
             }
-            search.Calculate(0, 0, 0, new[] {7,14,16,17,29,29}, null, null);
+            search.Calculate(UnitTest1.GpuIndex(), 0, 0, new[] {7,14,16,17,29,29}, null, null);
             Assert.AreEqual(SeedSearcher.SearchOutcome.Found, search.Outcome);
             Assert.AreEqual(0UL, search.Result[0]);
         }

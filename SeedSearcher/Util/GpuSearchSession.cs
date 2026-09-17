@@ -5,33 +5,42 @@ using System.Windows.Forms;
 using ILGPU;
 using ILGPU.Runtime;
 using ILGPU.Runtime.Cuda;
+using ILGPU.Runtime.OpenCL;
 
 namespace SeedSearcherGui
 {
     internal static class GpuDeviceCatalog
     {
-        private static readonly Lazy<Context> context = new Lazy<Context>(() => Context.Create(b => b.Cuda()));
+        private static readonly Lazy<Context> cuda = new Lazy<Context>(() => Context.Create(b => b.Cuda()));
+        private static readonly Lazy<Context> opencl = new Lazy<Context>(() => Context.Create(b => b.OpenCL()));
         private static readonly Lazy<Device[]> devices = new Lazy<Device[]>(Discover);
-        internal static Context Context => context.Value;
         internal static Device[] Devices => (Device[])devices.Value.Clone();
         internal static string DiscoveryError { get; private set; }
+        internal static Context ContextFor(Device device) => device.AcceleratorType == AcceleratorType.OpenCL ? opencl.Value : cuda.Value;
+        internal static bool IncludeOpenCL(CLDevice device) =>
+            (device.DeviceType & CLDeviceType.CL_DEVICE_TYPE_GPU) != 0 &&
+            device.VendorName.IndexOf("NVIDIA", StringComparison.OrdinalIgnoreCase) < 0;
         private static Device[] Discover()
         {
+            var list = new List<Device>();
+            var errors = new List<string>();
+            // Discover independently: a broken vendor runtime must not hide another backend.
+            try { foreach (var device in cuda.Value.GetCudaDevices()) list.Add(device); }
+            catch (Exception ex) { errors.Add("CUDA: " + ex.Message); }
             try
             {
-                var list = new List<Device>();
-                foreach (var device in Context.GetCudaDevices()) list.Add(device);
-                return list.ToArray();
+                foreach (var device in opencl.Value.GetCLDevices())
+                    if (IncludeOpenCL(device)) list.Add(device);
             }
-            catch (Exception ex)
-            {
-                DiscoveryError = ex.Message;
-                return new Device[0];
-            }
+            catch (Exception ex) { errors.Add("OpenCL: " + ex.Message); }
+            DiscoveryError = string.Join(Environment.NewLine, errors);
+            if (errors.Count > 0) Trace.WriteLine(DiscoveryError);
+            return list.ToArray();
         }
         internal static void Shutdown()
         {
-            if (context.IsValueCreated) context.Value.Dispose();
+            try { if (opencl.IsValueCreated) opencl.Value.Dispose(); }
+            finally { if (cuda.IsValueCreated) cuda.Value.Dispose(); }
         }
     }
 
@@ -91,7 +100,7 @@ namespace SeedSearcherGui
         internal double ExecutionMilliseconds { get; private set; }
         internal GpuSearchSession(Device device, Context context = null)
         {
-            Accelerator = device.CreateAccelerator(context ?? GpuDeviceCatalog.Context);
+            Accelerator = device.CreateAccelerator(context ?? GpuDeviceCatalog.ContextFor(device));
             try
             {
                 found = Accelerator.Allocate1D<int>(1);

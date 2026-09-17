@@ -1,9 +1,9 @@
 [CmdletBinding()]
-param([ValidateSet('CPU','CUDA')][string]$Backend = 'CUDA', [string]$Filter = '', [switch]$Acceptance, [switch]$SkipBuild)
+param([ValidateSet('CPU','CUDA','OpenCL')][string]$Backend = 'CUDA', [string]$Filter = '', [switch]$Acceptance, [switch]$SkipBuild)
 $ErrorActionPreference = 'Stop'
 if ($Acceptance -and $Filter) { throw 'Choose -Acceptance or -Filter, not both.' }
 if ($Acceptance) {
-    if ($Backend -eq 'CUDA') {
+    if ($Backend -ne 'CPU') {
         $Filter = 'Name~Test_Fixed1_|Name~Test_Fixed2_6_|Name=Test_Fixed2_5_Deviation0|Name=Test_Fixed2_5_Deviation0_LSB_Bad|Name=Test_Fixed2_4_Deviation0|Name=Test_Fixed2_4_Deviation0_LSB_Bad|Name=Test_Fixed3_5_Deviation0|Name=Test_Fixed3_5_Deviation0_LSB_Bad|Name=Test_Fixed3_4_Deviation0|Name=Test_Fixed3_4_Deviation0_LSB_Bad|FullyQualifiedName~GpuRuntimeTests|FullyQualifiedName~GpuEncounterTests'
     }
     else {

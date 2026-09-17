@@ -13,11 +13,11 @@ namespace SeedSearcherTest
     [TestClass]
     public class GpuRuntimeTests
     {
-        private static GpuSearchSession CudaSession()
+        private static GpuSearchSession GpuSession()
         {
             var devices = SeedSearcherGPU.UseableGPU();
-            if (devices.Length == 0) Assert.Inconclusive("CUDA hardware is required.");
-            return new GpuSearchSession(devices[0]);
+            if (devices.Length == 0) Assert.Inconclusive("GPU hardware is required.");
+            return new GpuSearchSession(devices[UnitTest1.GpuIndex()]);
         }
 
         private static void CountKernel(Index1D index, SearchKernelData data)
@@ -50,7 +50,7 @@ namespace SeedSearcherTest
             }
         }
         [TestMethod]
-        public void Cuda_BatchAndCoefficientBoundaries() => CheckCoverage(CudaSession());
+        public void Gpu_BatchAndCoefficientBoundaries() => CheckCoverage(GpuSession());
 
         [TestMethod]
         public void CpuAccelerator_BoundedCoverage()
@@ -59,9 +59,9 @@ namespace SeedSearcherTest
                 CheckCoverage(new GpuSearchSession(context.GetCPUDevice(0), context));
         }
         [TestMethod]
-        public void Cuda_AtomicWinnerAndZeroSeed()
+        public void Gpu_AtomicWinnerAndZeroSeed()
         {
-            using (var session = CudaSession())
+            using (var session = GpuSession())
             {
                 session.BatchSize = 7;
                 session.AdaptiveBatches = false;
@@ -81,9 +81,9 @@ namespace SeedSearcherTest
             }
         }
         [TestMethod]
-        public void Cuda_CancelAndRestart()
+        public void Gpu_CancelAndRestart()
         {
-            using (var session = CudaSession())
+            using (var session = GpuSession())
             {
                 var kernel = session.Compile(MatchKernel);
                 // Warm up before measuring cancellation: compilation is not preemptible.
@@ -113,9 +113,9 @@ namespace SeedSearcherTest
             }
         }
         [TestMethod]
-        public void Cuda_BufferReuseAndFlagLayout()
+        public void Gpu_BufferReuseAndFlagLayout()
         {
-            using (var session = CudaSession())
+            using (var session = GpuSession())
             using (var buffers = new SearchBuffers(session.Accelerator))
             {
                 var flags = new[] { false, true, false };
@@ -137,9 +137,9 @@ namespace SeedSearcherTest
             }
         }
         [TestMethod]
-        public void Cuda_RealSearchCancelAndRestart()
+        public void Gpu_RealSearchCancelAndRestart()
         {
-            if (SeedSearcherGPU.UseableGPU().Length == 0) Assert.Inconclusive("CUDA hardware required.");
+            if (SeedSearcherGPU.UseableGPU().Length == 0) Assert.Inconclusive("GPU hardware required.");
             var search = new SeedSearcher(SeedSearcher.Mode.Star35);
             search.RegisterLSB(1); // Deliberately wrong: keep searching until cancellation.
             search.RegisterPokemon1(2,31,5,26,19,31,2,1,16,1,1,0,0,false,false);
@@ -152,7 +152,7 @@ namespace SeedSearcherTest
             Task work = null;
             try
             {
-                work = Task.Run(() => search.Calculate(0, 0, 0, target, null, null));
+                work = Task.Run(() => search.Calculate(UnitTest1.GpuIndex(), 0, 0, target, null, null));
                 Assert.IsTrue(listener.Ready.Wait(30000), "Kernel did not finish compilation.");
                 Thread.Sleep(100);
                 var watch = Stopwatch.StartNew();
@@ -171,7 +171,7 @@ namespace SeedSearcherTest
                 listener.Dispose();
             }
             search.RegisterLSB(0);
-            search.Calculate(0, 0, 0, target, null, null);
+            search.Calculate(UnitTest1.GpuIndex(), 0, 0, target, null, null);
             Assert.AreEqual(SeedSearcher.SearchOutcome.Found, search.Outcome);
             Assert.AreEqual(0x87e8145f67d83f11UL, search.Result[0]);
         }
