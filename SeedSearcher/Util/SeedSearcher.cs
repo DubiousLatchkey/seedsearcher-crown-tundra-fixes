@@ -85,7 +85,7 @@ namespace SeedSearcherGui
 		private PkmnStruct pkmn4;
 		private int LSB;
 
-		private static bool StopSearchCommand = false;
+		private static volatile bool StopSearchCommand = false;
 
 		public static void ResetSearcher()
 		{
@@ -218,6 +218,8 @@ namespace SeedSearcherGui
 		private void CalculateGPU(int searcherIDX, int minRerolls, int maxRerolls, int[] target, ToolStripStatusLabel updateLbl, ToolStripProgressBar calculationProgressBar)
 		{
 			var devices = SeedSearcherGPU.UseableGPU();
+            if (searcherIDX >= devices.Length)
+                throw new InvalidOperationException("No selected CUDA device is available. Choose a CPU option or update the NVIDIA driver. " + GpuDeviceCatalog.DiscoveryError);
 			var ssg = new SeedSearcherGPU();
 			ssg.SetSixFirstCondition(pkmn1);
 			ssg.SetSixSecondCondition(pkmn2);
@@ -235,9 +237,9 @@ namespace SeedSearcherGui
 				if (ssg.TestSeed(0) != 5)
 				{
 					var result = ssg.SearchOne(devices[searcherIDX], minRerolls, maxRerolls, abilities, updateLbl, calculationProgressBar);
-					if (result != 0)
+					if (result.HasValue)
 					{
-						Result.Add(result);
+						Result.Add(result.Value);
 					}
 				}
 				else
@@ -249,7 +251,7 @@ namespace SeedSearcherGui
 				ssg.SetSixFourthCondition(pkmn4);
 				if (ssg.TestSeed(0) != 5)
 				{
-					ulong result;
+					ulong? result;
 					if(target[4] == -1)
 					{
 						result = ssg.SearchFour(devices[searcherIDX], minRerolls, maxRerolls, abilities, updateLbl, calculationProgressBar);
@@ -261,9 +263,9 @@ namespace SeedSearcherGui
 					{
 						result = ssg.SearchSix(devices[searcherIDX], minRerolls, maxRerolls, abilities, updateLbl, calculationProgressBar);
 					}
-					if (result != 0)
+					if (result.HasValue)
 					{
-						Result.Add(result);
+						Result.Add(result.Value);
 					}
 				}
 				else
@@ -279,24 +281,36 @@ namespace SeedSearcherGui
 			return Result;
 		}
 
-		public void Calculate(int searcherIDX, int minRerolls, int maxRerolls, int[] target, ToolStripStatusLabel updateLbl, ToolStripProgressBar calculationProgressBar)
-		{
-			Result.Clear();
-			StopSearchCommand = false;
-			SeedSearcherGPU.StopSearchCommand = false;
-			if (searcherIDX < 0)
-			{
-				CalculateCPU(searcherIDX + 3, minRerolls, maxRerolls, target, updateLbl, calculationProgressBar);
-			} else
-			{
-				CalculateGPU(searcherIDX, minRerolls, maxRerolls, target, updateLbl, calculationProgressBar);
-			}
-			StopSearchCommand = false;
-			SeedSearcherGPU.StopSearchCommand = false;
-		}
+        public enum SearchOutcome { NotStarted, Running, Found, Exhausted, Cancelled, Failed }
+        public SearchOutcome Outcome { get; private set; }
+        private static readonly object SearchLock = new object();
+
+        public void Calculate(int searcherIDX, int minRerolls, int maxRerolls, int[] target, ToolStripStatusLabel updateLbl, ToolStripProgressBar calculationProgressBar)
+        {
+            // Both legacy matrix builders use process-global state.
+            lock (SearchLock)
+            {
+                Result.Clear();
+                Outcome = SearchOutcome.Running;
+                StopSearchCommand = SeedSearcherGPU.StopSearchCommand = false;
+                try
+                {
+                    if (searcherIDX < 0)
+                        CalculateCPU(searcherIDX + 3, minRerolls, maxRerolls, target, updateLbl, calculationProgressBar);
+                    else
+                        CalculateGPU(searcherIDX, minRerolls, maxRerolls, target, updateLbl, calculationProgressBar);
+                    Outcome = Result.Count > 0 ? SearchOutcome.Found :
+                        StopSearchCommand ? SearchOutcome.Cancelled : SearchOutcome.Exhausted;
+                }
+                catch (OperationCanceledException) { Outcome = SearchOutcome.Cancelled; }
+                catch { Outcome = SearchOutcome.Failed; throw; }
+                finally { StopSearchCommand = SeedSearcherGPU.StopSearchCommand = false; }
+            }
+        }
 
 		private void CalculateCPU(int searcherIDX, int minRerolls, int maxRerolls, int[] target, ToolStripStatusLabel updateLbl, ToolStripProgressBar calculationProgressBar)
 		{
+            Reset(); // Native preparation owns global state; every run starts clean.
 			ParallelOptions opts;
 			if(searcherIDX == 0)
 			{
@@ -329,17 +343,17 @@ namespace SeedSearcherGui
 				{
 					if (calculationProgressBar != null)
 					{
-						calculationProgressBar.Maximum = abilities.Count;
+						GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Maximum = abilities.Count);
 					}
 
 					for (int i = minRerolls; i <= maxRerolls; ++i)
 					{
 						if(updateLbl != null)
-							updateLbl.Text = i.ToString();
+							GpuSearchSession.SetText(updateLbl, i.ToString());
 						Prepare(i);
 						if (calculationProgressBar != null)
 						{
-							calculationProgressBar.Value = 0;
+							GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value = 0);
 						}
 						foreach (ulong ability in abilities) 
 						{
@@ -348,7 +362,7 @@ namespace SeedSearcherGui
 								ulong result = Search((ulong)ivs, ability);
 								if (result != 0)
 								{
-									Result.Add(result);
+									lock (Result) { if (Result.Count == 0) Result.Add(result); }
 									state.Stop();
 								}
 								if (StopSearchCommand) state.Stop();
@@ -360,7 +374,7 @@ namespace SeedSearcherGui
 							if (StopSearchCommand) return;
 							if (calculationProgressBar != null)
 							{
-								calculationProgressBar.Value++;
+								GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value++);
 							}
 						}
 					}
@@ -411,23 +425,18 @@ namespace SeedSearcherGui
 					SetTargetCondition6(target[0], target[1], target[2], target[3], target[4], target[5]);
 					if (target[4] == -1)
 					{
-						var result = Util.Prompt(MessageBoxButtons.YesNo, "Warning: This search can take multiple hours. Only do this at your own risk. Do you want to continue?");
-						if (result == DialogResult.No)
-						{
-							return;
-						}
 						if (calculationProgressBar != null)
 						{
-							calculationProgressBar.Maximum = fixedPosition.Count * abilities.Count;
+							GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Maximum = fixedPosition.Count * abilities.Count);
 						}
 						for (int i = minRerolls; i <= maxRerolls; ++i)
 						{
 							if (updateLbl != null) { 
-								updateLbl.Text = i.ToString();
+								GpuSearchSession.SetText(updateLbl, i.ToString());
 							}
 							if (calculationProgressBar != null)
 							{
-								calculationProgressBar.Value = 0;
+								GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value = 0);
 							}
 							PrepareFive(i);
 							foreach (ulong fidx in fixedPosition)
@@ -439,7 +448,7 @@ namespace SeedSearcherGui
 										ulong result = SearchFour((ulong)ivs, ability, fidx);
 										if (result != 0)
 										{
-											Result.Add(result);
+											lock (Result) { if (Result.Count == 0) Result.Add(result); }
 											state.Stop();
 										}
 										if (StopSearchCommand) state.Stop();
@@ -451,7 +460,7 @@ namespace SeedSearcherGui
 									if (StopSearchCommand) return;
 									if (calculationProgressBar != null)
 									{
-										calculationProgressBar.Value++;
+										GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value++);
 									}
 								}
 							}
@@ -461,15 +470,15 @@ namespace SeedSearcherGui
 					{
 						if (calculationProgressBar != null)
 						{
-							calculationProgressBar.Maximum = fixedPosition.Count * abilities.Count;
+							GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Maximum = fixedPosition.Count * abilities.Count);
 						}
 						for (int i = minRerolls; i <= maxRerolls; ++i)
 						{
 							if (updateLbl != null)
-								updateLbl.Text = i.ToString();
+								GpuSearchSession.SetText(updateLbl, i.ToString());
 							if (calculationProgressBar != null)
 							{
-								calculationProgressBar.Value = 0;
+								GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value = 0);
 							}
 							PrepareFive(i);
 							foreach (ulong fidx in fixedPosition)
@@ -481,7 +490,7 @@ namespace SeedSearcherGui
 										ulong result = SearchFive((ulong)ivs, ability, fidx);
 										if (result != 0)
 										{
-											Result.Add(result);
+											lock (Result) { if (Result.Count == 0) Result.Add(result); }
 											state.Stop();
 										}
 										if (StopSearchCommand) state.Stop();
@@ -493,7 +502,7 @@ namespace SeedSearcherGui
 									if (StopSearchCommand) return;
 									if (calculationProgressBar != null)
 									{
-										calculationProgressBar.Value++;
+										GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value++);
 									}
 								}
 							}
@@ -503,15 +512,15 @@ namespace SeedSearcherGui
 					{
 						if (calculationProgressBar != null)
 						{
-							calculationProgressBar.Maximum = abilities.Count;
+							GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Maximum = abilities.Count);
 						}
 						for (int i = minRerolls; i <= maxRerolls; ++i)
 						{
 							if (updateLbl != null)
-								updateLbl.Text = i.ToString();
+								GpuSearchSession.SetText(updateLbl, i.ToString());
 							if (calculationProgressBar != null)
 							{
-								calculationProgressBar.Value = 0;
+								GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value = 0);
 							}
 							PrepareSix(i);
 							foreach (ulong ability in abilities)
@@ -521,7 +530,7 @@ namespace SeedSearcherGui
 									ulong result = SearchSix((ulong)ivs, ability);
 									if (result != 0)
 									{
-										Result.Add(result);
+										lock (Result) { if (Result.Count == 0) Result.Add(result); }
 										state.Stop();
 									}
 									if (StopSearchCommand) state.Stop();
@@ -533,7 +542,7 @@ namespace SeedSearcherGui
 								if (StopSearchCommand) return;
 								if (calculationProgressBar != null)
 								{
-									calculationProgressBar.Value++;
+									GpuSearchSession.Update(calculationProgressBar, () => calculationProgressBar.Value++);
 								}
 							}
 						}
